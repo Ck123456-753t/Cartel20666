@@ -109,7 +109,7 @@ function validateQuestions(questions) {
 }
 
 // List published quizzes for a course the student is enrolled in.
-router.get("/course/:courseId", requireUser, async (req, res) => {
+router.get("/course/:courseId", async (req, res) => {
   try {
     const { courseId } = req.params;
 
@@ -120,10 +120,11 @@ router.get("/course/:courseId", requireUser, async (req, res) => {
       });
     }
 
-    if (!isEnrolled(req.user, courseId)) {
-      return res.status(403).json({
+    const course = await Course.findOne({ _id: courseId, published: true });
+    if (!course) {
+      return res.status(404).json({
         success: false,
-        message: "Enroll in this course to access its quizzes."
+        message: "Published course not found."
       });
     }
 
@@ -186,7 +187,7 @@ router.get("/my-attempts", requireUser, async (req, res) => {
   }
 });
 
-router.get("/:quizId", requireUser, async (req, res) => {
+router.get("/:quizId", async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.quizId)) {
       return res.status(400).json({
@@ -207,10 +208,14 @@ router.get("/:quizId", requireUser, async (req, res) => {
       });
     }
 
-    if (!isEnrolled(req.user, quiz.course)) {
-      return res.status(403).json({
+    const course = await Course.findOne({
+      _id: quiz.course,
+      published: true
+    });
+    if (!course) {
+      return res.status(404).json({
         success: false,
-        message: "Enroll in this course to access its quizzes."
+        message: "Published course not found."
       });
     }
 
@@ -228,7 +233,7 @@ router.get("/:quizId", requireUser, async (req, res) => {
 });
 
 // Submit answers. The server calculates the score.
-router.post("/:quizId/submit", requireUser, async (req, res) => {
+router.post("/:quizId/submit", async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.quizId)) {
       return res.status(400).json({
@@ -249,10 +254,14 @@ router.post("/:quizId/submit", requireUser, async (req, res) => {
       });
     }
 
-    if (!isEnrolled(req.user, quiz.course)) {
-      return res.status(403).json({
+    const course = await Course.findOne({
+      _id: quiz.course,
+      published: true
+    });
+    if (!course) {
+      return res.status(404).json({
         success: false,
-        message: "You are not enrolled in this course."
+        message: "Published course not found."
       });
     }
 
@@ -339,7 +348,7 @@ router.post("/:quizId/submit", requireUser, async (req, res) => {
     const attempt = await QuizAttempt.create({
       quiz: quiz._id,
       course: quiz.course,
-      student: req.user._id,
+      student: req.user ? req.user._id : undefined,
       answers: results,
       score,
       totalPoints,

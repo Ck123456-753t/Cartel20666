@@ -36,7 +36,7 @@ const quizAttemptSchema = new mongoose.Schema({
   student: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
-    required: true,
+    required: false,
     index: true
   },
   answers: {

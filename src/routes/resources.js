@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const express = require("express");
 const multer = require("multer");
 const path = require("path");
@@ -72,29 +73,33 @@ const upload = multer({
 
 
 
-// Download a resource only for an administrator or an enrolled student.
+// Download resources attached to published courses.
 router.get(
   "/download/:courseId/:lessonId/:resourceId",
-  requireUser,
   async (req, res) => {
     try {
       const { courseId, lessonId, resourceId } = req.params;
-      const isAdmin = req.user.role === "admin";
 
-      if (!isAdmin && !req.user.enrolledCourses.some(
-        id => id.toString() === courseId
-      )) {
-        return res.status(403).json({
+      if (
+        !mongoose.isValidObjectId(courseId) ||
+        !mongoose.isValidObjectId(lessonId) ||
+        !mongoose.isValidObjectId(resourceId)
+      ) {
+        return res.status(400).json({
           success: false,
-          message: "Enroll in this course to access its resources."
+          message: "Invalid resource reference."
         });
       }
 
-      const course = await Course.findById(courseId);
+      const course = await Course.findOne({
+        _id: courseId,
+        published: true
+      });
+
       if (!course) {
         return res.status(404).json({
           success: false,
-          message: "Course not found."
+          message: "Published course not found."
         });
       }
 
@@ -134,8 +139,6 @@ router.get(
     }
   }
 );
-
-
 
 // Upload one resource to a lesson.
 router.post(
